@@ -51,12 +51,17 @@ impl<M: MetadataStore<SwapId>, S: StateStore<SwapId>> SwapRequestHandler<M, S> {
         let lqs_api_client = Arc::clone(&self.lqs_api_client);
 
         receiver
-            .for_each(move |(id, requests, response_sender)| {
+            .for_each(move |(id, request_kind, response_sender)| {
                 info!("Received swap {:?} on channel", id);
-                match requests {
-                    rfc003::bob::SwapRequestKind::BitcoinEthereumBitcoinQuantityEtherQuantity(
-                        request,
-                    ) => {
+                match_request!(
+                    request_kind,
+                    bitcoin_poll_interval,
+                    ethereum_poll_interval,
+                    lqs_api_client,
+                    request,
+                    alpha_ledger_events,
+                    beta_ledger_events,
+                    {
                         if let Err(e) = metadata_store.insert(id, request.clone()) {
                             error!("Failed to store metadata for swap {} because {:?}", id, e);
 
@@ -90,83 +95,15 @@ impl<M: MetadataStore<SwapId>, S: StateStore<SwapId>> SwapRequestHandler<M, S> {
                                 id,
                                 start_state,
                                 state_store.as_ref(),
-                                Box::new(LqsEvents::new(
-                                    QueryIdCache::wrap(Arc::clone(&lqs_api_client)),
-                                    FirstMatch::new(
-                                        Arc::clone(&lqs_api_client),
-                                        bitcoin_poll_interval,
-                                    ),
-                                )),
-                                Box::new(LqsEvents::new(
-                                    QueryIdCache::wrap(Arc::clone(&lqs_api_client)),
-                                    FirstMatch::new(
-                                        Arc::clone(&lqs_api_client),
-                                        ethereum_poll_interval,
-                                    ),
-                                )),
+                                alpha_ledger_events,
+                                beta_ledger_events,
                                 Box::new(BobToAlice::new(Box::new(response_future))),
                             );
                         }
 
                         Ok(())
                     }
-                    rfc003::bob::SwapRequestKind::BitcoinEthereumBitcoinQuantityErc20Quantity(
-                        request,
-                    ) => {
-                        if let Err(e) = metadata_store.insert(id, request.clone()) {
-                            error!("Failed to store metadata for swap {} because {:?}", id, e);
-
-                            // Return Ok to keep the loop running
-                            return Ok(());
-                        }
-
-                        {
-                            let request = request.clone();
-                            let (bob, response_future) = Bob::create();
-
-                            let response_future = response_future.inspect(|response| {
-                                response_sender
-                                    .send(response.clone().into())
-                                    .expect("receiver should never go out of scope");
-                            });
-
-                            let start_state = Start {
-                                alpha_ledger_refund_identity: request.alpha_ledger_refund_identity,
-                                beta_ledger_redeem_identity: request.beta_ledger_redeem_identity,
-                                alpha_ledger: request.alpha_ledger,
-                                beta_ledger: request.beta_ledger,
-                                alpha_asset: request.alpha_asset,
-                                beta_asset: request.beta_asset,
-                                alpha_ledger_lock_duration: request.alpha_ledger_lock_duration,
-                                secret: request.secret_hash,
-                                role: bob,
-                            };
-
-                            spawn_state_machine(
-                                id,
-                                start_state,
-                                state_store.as_ref(),
-                                Box::new(LqsEvents::new(
-                                    QueryIdCache::wrap(Arc::clone(&lqs_api_client)),
-                                    FirstMatch::new(
-                                        Arc::clone(&lqs_api_client),
-                                        bitcoin_poll_interval,
-                                    ),
-                                )),
-                                Box::new(LqsEventsForErc20::new(
-                                    QueryIdCache::wrap(Arc::clone(&lqs_api_client)),
-                                    FirstMatch::new(
-                                        Arc::clone(&lqs_api_client),
-                                        ethereum_poll_interval,
-                                    ),
-                                )),
-                                Box::new(BobToAlice::new(Box::new(response_future))),
-                            );
-                        }
-
-                        Ok(())
-                    }
-                }
+                )
             })
             .map_err(|_| ())
     }

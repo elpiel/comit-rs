@@ -1,5 +1,7 @@
 mod btc_erc20;
 mod btc_eth;
+mod eth_btc;
+
 use crate::{
     comit_client::{SwapDeclineReason, SwapReject},
     swap_protocols::rfc003::{state_machine::StateMachineResponse, Ledger},

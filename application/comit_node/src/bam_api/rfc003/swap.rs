@@ -52,6 +52,10 @@ pub fn swap_config(
                         Box::new(response_receiver.then(move |result| {
                             match result {
                                 Ok(rfc003::bob::SwapResponseKind::BitcoinEthereum(response)) => Ok(to_bam_response::<Bitcoin, Ethereum>(response)),
+                                Ok(invalid_response) => {
+                                    warn!("Invalid response kind {:?} for swap {}", invalid_response, swap_id);
+                                    Ok(Response::new(Status::SE(0)))
+                                }
                                 Err(_) => {
                                     warn!("Failed to receive from oneshot channel for swap {}", swap_id);
                                     Ok(Response::new(Status::SE(0)))
@@ -68,6 +72,30 @@ pub fn swap_config(
                         Box::new(response_receiver.then(move |result| {
                             match result {
                                 Ok(rfc003::bob::SwapResponseKind::BitcoinEthereum(response)) => Ok(to_bam_response::<Bitcoin, Ethereum>(response)),
+                                Ok(invalid_response) => {
+                                    warn!("Invalid response kind {:?} for swap {}", invalid_response, swap_id);
+                                    Ok(Response::new(Status::SE(0)))
+                                }
+                                Err(_) => {
+                                    warn!("Failed to receive from oneshot channel for swap {}", swap_id);
+                                    Ok(Response::new(Status::SE(0)))
+                                }
+                            }
+                        }))
+                    } else if let Ok(swap_request) = decode_request(&request) {
+                        let request_kind =
+                            rfc003::bob::SwapRequestKind::EthereumBitcoinEtherQuantityBitcoinQuantity(
+                                swap_request,
+                            );
+                        sender.unbounded_send((swap_id, request_kind, response_sender)).unwrap();
+
+                        Box::new(response_receiver.then(move |result| {
+                            match result {
+                                Ok(rfc003::bob::SwapResponseKind::EthereumBitcoin(response)) => Ok(to_bam_response::<Ethereum, Bitcoin>(response)),
+                                Ok(invalid_response) => {
+                                    warn!("Invalid response kind {:?} for swap {}", invalid_response, swap_id);
+                                    Ok(Response::new(Status::SE(0)))
+                                }
                                 Err(_) => {
                                     warn!("Failed to receive from oneshot channel for swap {}", swap_id);
                                     Ok(Response::new(Status::SE(0)))

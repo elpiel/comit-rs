@@ -61,6 +61,24 @@ macro_rules! with_swap_types {
 
                 _match_role!(role, $fn)
             }
+            Metadata {
+                alpha_ledger: LedgerKind::Ethereum,
+                beta_ledger: LedgerKind::Bitcoin,
+                alpha_asset: AssetKind::Ether,
+                beta_asset: AssetKind::Bitcoin,
+                role,
+            } => {
+                #[allow(dead_code)]
+                type AL = Ethereum;
+                #[allow(dead_code)]
+                type BL = Bitcoin;
+                #[allow(dead_code)]
+                type AA = EtherQuantity;
+                #[allow(dead_code)]
+                type BA = BitcoinQuantity;
+
+                _match_role!(role, $fn)
+            }
             _ => unimplemented!(),
         }
     }};
