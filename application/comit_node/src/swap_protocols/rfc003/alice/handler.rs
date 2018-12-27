@@ -12,13 +12,12 @@ use crate::{
             secret_source::SecretSource,
             state_machine::{Context, Start, Swap, SwapStates},
             state_store::StateStore,
-            Ledger, Secret,
+            Ledger,
         },
         SwapId,
     },
 };
 use futures::{stream::Stream, sync::mpsc::UnboundedReceiver, Future};
-use rand::thread_rng;
 use std::{marker::PhantomData, net::SocketAddr, sync::Arc, time::Duration};
 
 #[derive(Debug)]
@@ -124,7 +123,7 @@ impl<
                             return Ok(());
                         }
 
-                        let secret = Secret::generate(&mut thread_rng());
+                        let secret = seed.new_secret(id);
 
                         let start_state = Start {
                             alpha_ledger_refund_identity: request
