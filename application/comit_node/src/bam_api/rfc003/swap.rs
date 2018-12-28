@@ -53,8 +53,8 @@ pub fn swap_config(
                             match result {
                                 Ok(rfc003::bob::SwapResponseKind::BitcoinEthereum(response)) => Ok(to_bam_response::<Bitcoin, Ethereum>(response)),
                                 Ok(invalid_response) => {
-                                    warn!("Invalid response kind {:?} for swap {}", invalid_response, swap_id);
-                                    Ok(Response::new(Status::SE(0)))
+                                    error!("Unexpected response kind {:?} for swap {}", invalid_response, swap_id);
+                                    Ok(Response::new(Status::RE(0)))
                                 }
                                 Err(_) => {
                                     warn!("Failed to receive from oneshot channel for swap {}", swap_id);
@@ -73,8 +73,8 @@ pub fn swap_config(
                             match result {
                                 Ok(rfc003::bob::SwapResponseKind::BitcoinEthereum(response)) => Ok(to_bam_response::<Bitcoin, Ethereum>(response)),
                                 Ok(invalid_response) => {
-                                    warn!("Invalid response kind {:?} for swap {}", invalid_response, swap_id);
-                                    Ok(Response::new(Status::SE(0)))
+                                    error!("Unexpected response kind {:?} for swap {}", invalid_response, swap_id);
+                                    Ok(Response::new(Status::RE(0)))
                                 }
                                 Err(_) => {
                                     warn!("Failed to receive from oneshot channel for swap {}", swap_id);
@@ -93,8 +93,8 @@ pub fn swap_config(
                             match result {
                                 Ok(rfc003::bob::SwapResponseKind::EthereumBitcoin(response)) => Ok(to_bam_response::<Ethereum, Bitcoin>(response)),
                                 Ok(invalid_response) => {
-                                    warn!("Invalid response kind {:?} for swap {}", invalid_response, swap_id);
-                                    Ok(Response::new(Status::SE(0)))
+                                    error!("Unexpected response kind {:?} for swap {}", invalid_response, swap_id);
+                                    Ok(Response::new(Status::RE(0)))
                                 }
                                 Err(_) => {
                                     warn!("Failed to receive from oneshot channel for swap {}", swap_id);
