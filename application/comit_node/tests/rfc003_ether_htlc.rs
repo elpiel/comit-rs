@@ -172,13 +172,14 @@ fn given_htlc_and_refund_should_emit_refund_log_msg() {
 }
 
 #[test]
-fn given_deployed_htlc_when_redeemed_with_short_secret_then_money_is_transferred(
-) -> Result<(), failure::Error> {
+fn given_short_secret_left_padded_should_not_redeem() -> Result<(), failure::Error> {
     let docker = Cli::default();
+
     let secret = CustomSizeSecret(vec![
         0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
         0u8, 0u8, 0u8, 0u8, 0u8, 1u8, 2u8, 3u8, 4u8, 6u8, 6u8, 7u8, 9u8, 10u8,
     ]);
+
     let (alice, bob, htlc, client, _handle, _container) =
         ether_harness(&docker, EtherHarnessParams::from(secret.hash()));
 
@@ -186,6 +187,52 @@ fn given_deployed_htlc_when_redeemed_with_short_secret_then_money_is_transferred
         client.eth_balance_of(bob),
         EtherQuantity::from_eth(0.0).wei()
     );
+    assert_eq!(
+        client.eth_balance_of(alice),
+        EtherQuantity::from_eth(0.6).wei() - U256::from(HTLC_GAS_COST_SHORT_SECRET)
+    );
+
+    assert_eq!(
+        client.eth_balance_of(htlc),
+        EtherQuantity::from_eth(0.4).wei()
+    );
+
+    client.send_data(
+        htlc,
+        Some(Bytes(vec![1u8, 2u8, 3u8, 4u8, 6u8, 6u8, 7u8, 9u8, 10u8])),
+    ); // will result in right padding and redemption should fail
+
+    assert_eq!(
+        client.eth_balance_of(bob),
+        EtherQuantity::from_eth(0.0).wei()
+    );
+    //    assert_eq!(
+    //        client.eth_balance_of(alice),
+    //        EtherQuantity::from_eth(0.6).wei() - U256::from(HTLC_GAS_COST)
+    //    );
+    assert_eq!(
+        client.eth_balance_of(htlc),
+        EtherQuantity::from_eth(0.4).wei()
+    );
+    Ok(())
+}
+
+#[test]
+fn given_short_secret_right_padded_should_redeem() -> Result<(), failure::Error> {
+    let docker = Cli::default();
+    let secret = CustomSizeSecret(vec![
+        1u8, 2u8, 3u8, 4u8, 6u8, 6u8, 7u8, 9u8, 10u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+        0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8, 0u8,
+    ]);
+
+    let (alice, bob, htlc, client, _handle, _container) =
+        ether_harness(&docker, EtherHarnessParams::from(secret.hash()));
+
+    assert_eq!(
+        client.eth_balance_of(bob),
+        EtherQuantity::from_eth(0.0).wei()
+    );
+
     assert_eq!(
         client.eth_balance_of(alice),
         EtherQuantity::from_eth(0.6).wei() - U256::from(HTLC_GAS_COST_SHORT_SECRET)
@@ -212,6 +259,50 @@ fn given_deployed_htlc_when_redeemed_with_short_secret_then_money_is_transferred
     assert_eq!(
         client.eth_balance_of(htlc),
         EtherQuantity::from_eth(0.0).wei()
+    );
+    Ok(())
+}
+
+#[test]
+fn given_short_secret_not_padded_should_not_redeem() -> Result<(), failure::Error> {
+    let docker = Cli::default();
+    let secret = CustomSizeSecret(vec![1u8, 2u8, 3u8, 4u8, 6u8, 6u8, 7u8, 9u8, 10u8]);
+
+    let (alice, bob, htlc, client, _handle, _container) =
+        ether_harness(&docker, EtherHarnessParams::from(secret.hash()));
+
+    assert_eq!(
+        client.eth_balance_of(bob),
+        EtherQuantity::from_eth(0.0).wei()
+    );
+
+    assert_eq!(
+        client.eth_balance_of(alice),
+        EtherQuantity::from_eth(0.6).wei() - U256::from(HTLC_GAS_COST_SHORT_SECRET)
+    );
+
+    assert_eq!(
+        client.eth_balance_of(htlc),
+        EtherQuantity::from_eth(0.4).wei()
+    );
+
+    client.send_data(
+        htlc,
+        Some(Bytes(vec![1u8, 2u8, 3u8, 4u8, 6u8, 6u8, 7u8, 9u8, 10u8])),
+    ); // will result in right padded secret, hashing this is not equal than our
+       // generated secret above
+
+    assert_eq!(
+        client.eth_balance_of(bob),
+        EtherQuantity::from_eth(0.0).wei()
+    );
+    //    assert_eq!(
+    //        client.eth_balance_of(alice),
+    //        EtherQuantity::from_eth(0.6).wei() - U256::from(HTLC_GAS_COST)
+    //    );
+    assert_eq!(
+        client.eth_balance_of(htlc),
+        EtherQuantity::from_eth(0.4).wei()
     );
     Ok(())
 }
